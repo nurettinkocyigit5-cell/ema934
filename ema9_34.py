@@ -3,11 +3,11 @@ import ccxt
 import pandas as pd
 
 st.set_page_config(
-    page_title="OKX EMA9 / EMA34 Scanner",
+    page_title="Gate.io EMA9 / EMA34 Scanner",
     layout="wide"
 )
 
-st.title("📈 OKX EMA9 → EMA34 Yukarı Kesişim Tarayıcı")
+st.title("📈 Gate.io EMA9 → EMA34 Yukarı Kesişim Tarayıcı")
 st.caption("TradingView EMA hesaplaması ile birebir uyumlu | 1 Saatlik")
 
 TIMEFRAME = "1h"
@@ -15,11 +15,16 @@ LIMIT = 120
 
 @st.cache_data(ttl=300)
 def get_symbols():
-    exchange = ccxt.okx({'enableRateLimit': True})
+    exchange = ccxt.gateio({
+        'enableRateLimit': True
+    })
     markets = exchange.load_markets()
+
     return [
         s for s in markets
-        if s.endswith('/USDT') and markets[s]['active']
+        if s.endswith('/USDT')
+        and markets[s]['active']
+        and markets[s]['spot']
     ]
 
 def ema(series, period):
@@ -27,7 +32,10 @@ def ema(series, period):
     return series.ewm(span=period, adjust=False).mean()
 
 def scan():
-    exchange = ccxt.okx({'enableRateLimit': True})
+    exchange = ccxt.gateio({
+        'enableRateLimit': True
+    })
+
     rows = []
 
     for symbol in get_symbols():
@@ -40,7 +48,7 @@ def scan():
 
             df = pd.DataFrame(
                 ohlcv,
-                columns=['time','open','high','low','close','volume']
+                columns=['time', 'open', 'high', 'low', 'close', 'volume']
             )
 
             df['ema9'] = ema(df['close'], 9)
@@ -58,7 +66,9 @@ def scan():
                     "Coin": symbol,
                     "EMA9": round(curr_ema9, 4),
                     "EMA34": round(curr_ema34, 4),
-                    "Fark %": round((curr_ema9 - curr_ema34) / curr_ema34 * 100, 2)
+                    "Fark %": round(
+                        (curr_ema9 - curr_ema34) / curr_ema34 * 100, 2
+                    )
                 })
 
         except:
@@ -68,7 +78,7 @@ def scan():
 
 # 🔘 TARAMAYI BAŞLAT BUTONU
 if st.button("🚀 Taramayı Başlat"):
-    with st.spinner("OKX taranıyor..."):
+    with st.spinner("Gate.io taranıyor..."):
         result = scan()
 
     if result.empty:
